@@ -1015,6 +1015,12 @@ begin
   delete from auth.users where id = me;
 end $$;
 
+-- La propria scheda completa (con i campi privati)
+create or replace function my_profile() returns profiles
+language sql stable security definer set search_path = public as $$
+  select * from profiles where id = auth.uid()
+$$;
+
 -- ---------------------------------------------------------------------
 -- Inviti
 -- ---------------------------------------------------------------------
@@ -1228,6 +1234,11 @@ create policy profiles_insert on profiles for insert to authenticated
   with check (id = auth.uid());
 create policy profiles_update on profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
+
+-- Colonne pubbliche: compleanno, codice invito, gettoni e note restano privati
+revoke select on profiles from authenticated, anon;
+grant select (id, nickname, description, type_ids, sprite, photo_path, status, hidden, title_id, team_id,
+              xp, level, first_visit, created_at) on profiles to authenticated;
 
 -- Colonne protette: il cliente modifica solo i campi personali
 revoke insert, update on profiles from authenticated, anon;

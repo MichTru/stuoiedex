@@ -86,7 +86,7 @@ insert into sprite_parts (kind, name, color, sort) values
   ('colore_maglia', 'Giallo', '#F2B200', 7), ('colore_maglia', 'Viola', '#6B3FA0', 8);
 
 insert into sprite_parts (kind, name, asset, sort)
-select k::part_kind, n, 'parts/' || k || '/' || lower(replace(n, ' ', '-')) || '.png', row_number() over (partition by k)
+select k::part_kind, n, k || '/' || lower(replace(n, ' ', '-')), row_number() over (partition by k)
 from (values
   ('corporatura','Snella'), ('corporatura','Media'), ('corporatura','Robusta'),
   ('viso','Tondo'), ('viso','Ovale'), ('viso','Squadrato'),

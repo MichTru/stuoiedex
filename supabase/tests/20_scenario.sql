@@ -37,7 +37,9 @@ insert into profiles (id, nickname, type_ids, adult_confirmed) values (auth.uid(
 select as_user('00000000-0000-0000-0000-0000000000b3');
 insert into profiles (id, nickname, type_ids, adult_confirmed, birth_day, birth_month)
   values (auth.uid(), 'Teo', '{3}', true, extract(day from current_date)::int, extract(month from current_date)::int);
-select expect_error($$select use_invite((select invite_code from profiles where nickname = 'Teo'))$$, 'non valido');
+select expect_error($$select use_invite((select invite_code from my_profile()))$$, 'non valido');
+select expect_error($$select birth_day from profiles$$, 'permission denied');
+select case when (select birth_day from my_profile()) is not null then 'OK compleanno visibile solo a sé' else 'FAIL my_profile' end;
 select expect_error($$select staff_checkin_code()$$, 'Solo il personale');
 -- Teo non vede ancora le schede degli altri (in attesa)
 select case when (select count(*) from profiles) = 1 then 'OK solo la propria scheda' else 'FAIL visibilita' end;
@@ -67,7 +69,7 @@ select do_capture((select c from gigi_code));
 select do_capture((select c from gigi_code)) ->> 'new' as seconda_cattura_nuova;
 select expect_error($$select do_capture(replace((select c from gigi_code), right((select c from gigi_code),4), '0000'))$$, 'scaduto');
 
-select nickname, xp, tokens, level from profiles order by nickname;
+select nickname, xp, level from profiles order by nickname;
 select kind, xp, tokens, season_points from point_events where profile_id = auth.uid() order by id;
 select b.code from profile_badges pb join badges b on b.id = pb.badge_id where pb.profile_id = auth.uid();
 
@@ -96,7 +98,7 @@ select 'OK il barista crea eventi';
 -- punti dal proprietario + annullo
 select as_user('00000000-0000-0000-0000-00000000000a');
 select owner_award_points('00000000-0000-0000-0000-0000000000b1', 300, 30, 50, 'Serata speciale');
-select nickname, xp, tokens, level from profiles where nickname='Mario';
+select nickname, xp, level from profiles where nickname='Mario';
 select level, rarity_for_level(level) from profiles where nickname='Mario';
 
 -- premio
@@ -108,11 +110,11 @@ select expect_error($$select staff_validate_redemption((select j->>'code' from r
 select as_user('00000000-0000-0000-0000-00000000000a');
 select staff_validate_redemption((select j->>'code' from rd));
 select expect_error($$select staff_validate_redemption((select j->>'code' from rd))$$, 'già consegnato');
-select nickname, xp, tokens, level from profiles where nickname='Mario';
+select nickname, xp, level from profiles where nickname='Mario';
 
 -- annullo movimento manuale
 select owner_revert_points((select max(id) from point_events where kind='manual'));
-select nickname, xp, tokens, level from profiles where nickname='Mario';
+select nickname, xp, level from profiles where nickname='Mario';
 
 -- evento calcio x5 -> missione tifoso
 insert into events (kind, title, starts_at) select 'calcio', 'Partita '||g, now() from generate_series(1,5) g;
