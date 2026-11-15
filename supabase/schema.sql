@@ -5,7 +5,8 @@
 -- funzioni SECURITY DEFINER che controllano e calcolano lato server.
 -- =====================================================================
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 -- ---------------------------------------------------------------------
 -- Impostazioni e segreti
@@ -45,7 +46,7 @@ insert into settings default values;
 -- Segreto per firmare i QR: mai leggibile dal client.
 create table app_secrets (
   id      boolean primary key default true check (id),
-  qr_key  text not null default encode(gen_random_bytes(32), 'hex')
+  qr_key  text not null default encode(extensions.gen_random_bytes(32), 'hex')
 );
 insert into app_secrets default values;
 
@@ -172,7 +173,7 @@ create table profiles (
   tokens          int not null default 0 check (tokens >= 0),
   level           int not null default 1,
   first_visit     date,
-  invite_code     text not null unique default upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 6)),
+  invite_code     text not null unique default upper(substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 6)),
   invited_by      uuid references profiles on delete set null,
   invite_rewarded boolean not null default false,
   birth_day       smallint check (birth_day between 1 and 31),
@@ -395,7 +396,7 @@ end $$;
 
 create or replace function qr_sign(payload text) returns text
 language sql stable security definer set search_path = public, extensions as $$
-  select substr(encode(hmac(payload, (select qr_key from app_secrets), 'sha256'), 'hex'), 1, 12)
+  select substr(encode(extensions.hmac(payload, (select qr_key from app_secrets), 'sha256'), 'hex'), 1, 12)
 $$;
 
 create or replace function qr_window() returns bigint
@@ -779,7 +780,7 @@ begin
   if me.tokens < r.cost then raise exception 'Gettoni insufficienti'; end if;
 
   update redemptions set status = 'expired' where profile_id = me.id and status = 'pending';
-  c := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
+  c := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 8));
   exp := now() + make_interval(mins => (select redemption_minutes from settings));
   insert into redemptions (profile_id, reward_id, code, expires_at) values (me.id, rid, c, exp);
   return jsonb_build_object('code', 'R.' || c, 'expires_at', exp);

@@ -9,4 +9,3 @@ do $$ begin
 end $$;
 grant usage on schema public, auth to authenticated, anon;
 grant execute on function auth.uid() to authenticated, anon;
-create extension if not exists pgcrypto;
