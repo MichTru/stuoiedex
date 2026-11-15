@@ -65,6 +65,7 @@ async function loadCatalog() {
 }
 
 window.addEventListener('hashchange', () => { if (S.me) route(); });
+api.onSignIn?.(() => { if (!S.me) boot(); });
 
 function route() {
   stopCamera();
@@ -85,35 +86,44 @@ function loginView() {
     $app.innerHTML = `<div class="screen">${top('Stuoiedex', DEMO ? '<span class="counter">Demo</span>' : '')}
     <main class="body" style="padding-bottom:32px">
       <div class="prof">${spriteSVG(BARISTA, 128, { label: 'Il barista' })}</div>
-      <form class="win" id="f" novalidate>
-        ${step === 1 ? `
+      ${step === 1 ? `<form class="win" id="f" novalidate>
         <label class="f">Email<input id="email" type="email" inputmode="email" autocomplete="email" required value="${esc(email)}"></label>
         <p class="err" id="err"></p>
-        <button class="btn block" type="submit">Mandami il codice</button>` : `
-        <p style="margin:0 0 12px">Codice inviato a <strong>${esc(email)}</strong></p>
-        <label class="f">Codice<input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="8" required></label>
-        <p class="err" id="err"></p>
         <button class="btn block" type="submit">Entra</button>
-        <button class="link" type="button" id="back" style="color:var(--ink)">Cambia email</button>`}
-      </form>
+      </form>` : `<div class="win" style="display:flex;flex-direction:column;gap:12px">
+        <p style="margin:0">Controlla la posta: abbiamo mandato un link a <strong>${esc(email)}</strong>. Aprilo da questo telefono per entrare.</p>
+        <p class="err" id="err"></p>
+        ${DEMO ? '<button class="btn block" id="demo">Apri il link (demo)</button>' : ''}
+        <button class="btn light block" id="again">Rimanda il link</button>
+        <button class="link" type="button" id="back" style="color:var(--ink)">Cambia email</button>
+      </div>`}
     </main></div>`;
-    const f = document.getElementById('f'), err = document.getElementById('err');
-    (document.getElementById('email') || document.getElementById('code')).focus();
-    document.getElementById('back')?.addEventListener('click', () => render(1));
-    f.onsubmit = async (ev) => {
-      ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]'); btn.disabled = true; err.textContent = '';
-      try {
-        if (step === 1) {
+    const err = document.getElementById('err');
+    if (step === 1) {
+      const f = document.getElementById('f');
+      document.getElementById('email').focus();
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const btn = f.querySelector('button[type=submit]'); btn.disabled = true; err.textContent = '';
+        try {
           email = document.getElementById('email').value.trim();
           if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Scrivi un indirizzo email valido');
-          await api.sendOtp(email); render(2);
-        } else {
-          await api.verifyOtp(email, document.getElementById('code').value.trim());
-          sound('ok'); boot();
-        }
-      } catch (e) { err.textContent = e.message; sound('error'); btn.disabled = false; }
-    };
+          await api.sendOtp(email); sound('ok'); render(2);
+        } catch (e) { err.textContent = e.message; sound('error'); btn.disabled = false; }
+      };
+    } else {
+      document.getElementById('back').onclick = () => render(1);
+      const again = document.getElementById('again');
+      const cool = (n) => {
+        again.disabled = n > 0; again.textContent = n > 0 ? `Rimanda il link (${n})` : 'Rimanda il link';
+        if (n > 0) setTimeout(() => cool(n - 1), 1000);
+      };
+      cool(60);
+      again.onclick = async () => {
+        try { await api.sendOtp(email); toast('Link rimandato', 'ok'); cool(60); } catch (e) { err.textContent = e.message; }
+      };
+      document.getElementById('demo')?.addEventListener('click', async () => { await api.verifyOtp(email); boot(); });
+    }
   };
   render(1);
 }

@@ -13,7 +13,8 @@ const friendly = (e) => {
   const m = e?.message || String(e);
   if (/duplicate key.*nickname/i.test(m)) return 'Questo soprannome è già preso';
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Connessione assente: riprova tra poco';
-  if (/Token has expired|invalid/i.test(m) && /otp|token/i.test(m)) return 'Codice sbagliato o scaduto';
+  if (/rate limit|only request this after/i.test(m)) return 'Troppe email in poco tempo: riprova tra qualche minuto';
+  if (/expired|invalid/i.test(m) && /otp|token|link/i.test(m)) return 'Link scaduto: chiedine uno nuovo';
   return m.replace(/^.*?ERROR:\s*/, '');
 };
 
@@ -21,7 +22,7 @@ const friendly = (e) => {
 const PUBLIC_COLS = 'id,nickname,description,type_ids,sprite,photo_path,status,hidden,title_id,team_id,xp,level,first_visit,created_at';
 let sbPromise;
 const sb = () => (sbPromise ??= import('https://esm.sh/@supabase/supabase-js@2.49.1').then(({ createClient }) =>
-  createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } })));
+  createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' } })));
 
 async function q(p) {
   const { data, error } = await p;
@@ -34,6 +35,7 @@ const real = {
   async sendOtp(email) { const c = await sb(); await q(c.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } })); },
   async verifyOtp(email, token) { const c = await sb(); await q(c.auth.verifyOtp({ email, token, type: 'email' })); },
   async signOut() { const c = await sb(); await c.auth.signOut(); },
+  onSignIn(cb) { sb().then((c) => c.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN') cb(); })); },
   async catalog() {
     const c = await sb();
     const [types, parts, items, badges, titles] = await Promise.all([

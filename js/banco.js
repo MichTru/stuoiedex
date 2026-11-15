@@ -32,16 +32,18 @@ function login() {
   const draw = (step) => {
     $.innerHTML = `<form class="banco-msg win" id="f" novalidate style="display:flex;flex-direction:column;gap:12px">
       <div class="row" style="flex:0">${CREST}<strong style="font:14px var(--px)">Bancone</strong></div>
-      ${step === 1 ? `<label class="f">Email<input id="e" type="email" autocomplete="email" value="${esc(email)}"></label>`
-        : `<label class="f">Codice ricevuto<input id="c" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>`}
-      <p class="err" id="err"></p>
-      <button class="btn block" type="submit">${step === 1 ? 'Mandami il codice' : 'Entra'}</button></form>`;
+      ${step === 1 ? `<label class="f">Email<input id="e" type="email" autocomplete="email" value="${esc(email)}"></label>
+        <p class="err" id="err"></p><button class="btn block" type="submit">Entra</button>`
+        : `<p style="margin:0">Apri il link che abbiamo mandato a <strong>${esc(email)}</strong> da questo dispositivo.</p>
+        ${DEMO ? '<button class="btn block" type="submit">Apri il link (demo)</button>' : ''}
+        <button class="link" type="button" id="b" style="color:var(--ink)">Cambia email</button>`}</form>`;
+    document.getElementById('b')?.addEventListener('click', () => draw(1));
     document.getElementById('f').onsubmit = async (ev) => {
       ev.preventDefault();
       try {
         if (step === 1) { email = document.getElementById('e').value.trim(); await api.sendOtp(email); draw(2); }
-        else { await api.verifyOtp(email, document.getElementById('c').value.trim()); boot(); }
-      } catch (e) { document.getElementById('err').textContent = e.message; }
+        else { await api.verifyOtp(email); boot(); }
+      } catch (e) { const el = document.getElementById('err'); if (el) el.textContent = e.message; else toast(e.message, 'error'); }
     };
   };
   draw(1);
@@ -148,4 +150,5 @@ async function schede() {
   };
 }
 
+api.onSignIn?.(() => boot());
 boot();
