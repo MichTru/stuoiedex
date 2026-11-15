@@ -1,5 +1,5 @@
 // Cache dell'app: si apre subito e funziona anche senza rete (con l'ultimo stato salvato dal browser).
-const V = 'stuoiedex-v2';
+const V = 'stuoiedex-v3';
 const SHELL = ['./', 'index.html', 'banco.html', 'css/style.css', 'js/app.js', 'js/banco.js', 'js/api.js', 'js/config.js',
   'js/catalog.js', 'js/sprites.js', 'js/ui.js', 'js/scanner.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 

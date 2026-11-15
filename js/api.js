@@ -31,7 +31,7 @@ async function q(p) {
 
 const real = {
   async user() { const c = await sb(); const { data } = await c.auth.getSession(); return data.session?.user ?? null; },
-  async sendOtp(email) { const c = await sb(); await q(c.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })); },
+  async sendOtp(email) { const c = await sb(); await q(c.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } })); },
   async verifyOtp(email, token) { const c = await sb(); await q(c.auth.verifyOtp({ email, token, type: 'email' })); },
   async signOut() { const c = await sb(); await c.auth.signOut(); },
   async catalog() {
