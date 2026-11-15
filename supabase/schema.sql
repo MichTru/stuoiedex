@@ -188,15 +188,15 @@ alter table teams add constraint teams_captain_fk
 
 -- Curva dei livelli: XP totale per raggiungere il livello L = 25·(L−1)^1.8, massimo 30.
 create or replace function xp_for_level(l int) returns int
-language sql immutable as $$ select round(25 * power(greatest(l - 1, 0), 1.8))::int $$;
+language sql immutable set search_path = public as $$ select round(25 * power(greatest(l - 1, 0), 1.8))::int $$;
 
 create or replace function level_for_xp(x int) returns int
-language sql immutable as $$
+language sql immutable set search_path = public as $$
   select coalesce(max(l), 1) from generate_series(1, 30) l where xp_for_level(l) <= x
 $$;
 
 create or replace function rarity_for_level(l int) returns text
-language sql immutable as $$
+language sql immutable set search_path = public as $$
   select case when l >= 30 then 'leggendario'
               when l >= 20 then 'raro'
               when l >= 10 then 'non_comune'
@@ -1167,6 +1167,7 @@ alter table settings            enable row level security;
 alter table app_secrets         enable row level security;
 alter table staff               enable row level security;
 alter table creature_types      enable row level security;
+alter table sprite_parts        enable row level security;
 alter table seasons             enable row level security;
 alter table items               enable row level security;
 alter table titles              enable row level security;
@@ -1305,6 +1306,31 @@ revoke execute on function check_milestones(uuid)         from public, authentic
 revoke execute on function qr_sign(text)                  from public, authenticated, anon;
 revoke execute on function qr_valid(text, text)           from public, authenticated, anon;
 revoke execute on function daily_jobs()                    from public, authenticated, anon;
+
+
+-- Nessuna funzione per chi non ha fatto l'accesso; gli aiutanti interni non si chiamano dal client.
+do $$
+declare f record;
+begin
+  for f in select p.oid::regprocedure as sig from pg_proc p
+           where p.pronamespace = 'public'::regnamespace and p.prosecdef
+             and p.proname = any (array['answer_friend','apply_points_trigger','create_team','delete_my_account','do_capture','do_checkin',
+               'is_owner','is_staff','join_team','leave_team','my_capture_code','my_profile','my_season_recap','owner_award_points',
+               'owner_revert_points','owner_stats','register_event','request_friend','require_approved','staff_announce',
+               'staff_build_bracket','staff_checkin_code','staff_close_season','staff_close_tournament','staff_mark_attendance',
+               'staff_review_profile','staff_validate_redemption','start_redemption','unregister_event','use_invite',
+               'add_points','grant_badge','notify','advance_missions','check_milestones','qr_sign','qr_valid','daily_jobs'])
+  loop
+    execute format('revoke execute on function %s from public, anon', f.sig);
+    if f.sig::text !~ '^(add_points|grant_badge|notify|advance_missions|check_milestones|qr_sign|qr_valid|daily_jobs|apply_points_trigger|require_approved)\(' then
+      execute format('grant execute on function %s to authenticated', f.sig);
+    else
+      execute format('revoke execute on function %s from authenticated', f.sig);
+    end if;
+  end loop;
+end $$;
+-- Classifiche: viste con i permessi del proprietario per mostrare solo punteggi pubblici, mai agli anonimi
+revoke all on season_leaderboard, team_leaderboard from anon;
 
 -- Realtime: classifiche e bacheca si aggiornano da sole
 do $$ begin
